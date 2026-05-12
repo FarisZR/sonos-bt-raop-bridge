@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sonos-bt-raop-bridge"
+version = "0.1.0"
+description = "Bluetooth to Sonos RAOP bridge orchestration"
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [
+  { name = "OpenCode" },
+]
+dependencies = []
+
+[project.scripts]
+sonos-bt-bridge = "sonos_bt_raop_bridge.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

@@ -1,0 +1,11 @@
+[Unit]
+Description=sonos-bt-raop-bridge delay forwarder
+
+[Service]
+Type=simple
+EnvironmentFile=-/etc/sonos-bt-raop-bridge/env
+ExecStart=/usr/bin/env sonos-bt-bridge doctor
+Restart=on-failure
+
+[Install]
+WantedBy=default.target
