@@ -1,0 +1,13 @@
+[Unit]
+Description=sonos-bt-raop-bridge BlueZ auto-pair agent
+After=bluetooth.service
+Requires=bluetooth.service
+
+[Service]
+Type=simple
+Environment=PYTHONPATH=/home/clawd/sonos-bt-raop-bridge/src
+ExecStart=/usr/bin/python3 -m sonos_bt_raop_bridge.bluetooth_agent
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

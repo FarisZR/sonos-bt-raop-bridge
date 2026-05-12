@@ -1,0 +1,13 @@
+[Unit]
+Description=Prepare Bluetooth adapter for sonos-bt-raop-bridge
+After=bluetooth.service
+Requires=bluetooth.service
+
+[Service]
+Type=oneshot
+EnvironmentFile=-/etc/sonos-bt-raop-bridge/env
+ExecStart=/usr/bin/bash /usr/local/lib/sonos-bt-raop-bridge/configure_bluetooth_adapter.sh
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

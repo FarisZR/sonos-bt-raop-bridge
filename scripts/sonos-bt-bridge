@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+REPO_ROOT=${SONOS_BT_RAOP_BRIDGE_ROOT:-/home/clawd/sonos-bt-raop-bridge}
+RUNTIME_DIR=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}
+
+export PYTHONPATH="$REPO_ROOT/src${PYTHONPATH:+:$PYTHONPATH}"
+
+if [[ -z ${XDG_RUNTIME_DIR:-} && -d "$RUNTIME_DIR" ]]; then
+  export XDG_RUNTIME_DIR="$RUNTIME_DIR"
+fi
+
+if [[ -z ${DBUS_SESSION_BUS_ADDRESS:-} && -S "$RUNTIME_DIR/bus" ]]; then
+  export DBUS_SESSION_BUS_ADDRESS="unix:path=$RUNTIME_DIR/bus"
+fi
+
+exec python3 -m sonos_bt_raop_bridge "$@"

@@ -57,6 +57,8 @@ capture bluez-tree sudo -n busctl tree org.bluez
 capture bluez-adapter sudo -n busctl introspect org.bluez /org/bluez/hci0 org.bluez.Adapter1
 capture avahi-service systemctl status avahi-daemon --no-pager
 capture avahi-raop avahi-browse -rt _raop._tcp
+capture pipewire-probe bash "$ROOT_DIR/scripts/probe_pipewire_raop.sh"
+capture bluez-a2dp-probe bash "$ROOT_DIR/scripts/probe_bluez_a2dp.sh"
 capture adb-devices adb devices -l
 capture adb-version adb version
 capture android-version adb shell getprop ro.build.version.release

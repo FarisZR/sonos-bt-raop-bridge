@@ -4,6 +4,7 @@ Description=sonos-bt-raop-bridge delay forwarder
 [Service]
 Type=simple
 EnvironmentFile=-/etc/sonos-bt-raop-bridge/env
+Environment=PYTHONPATH=/home/clawd/sonos-bt-raop-bridge/src
 ExecStart=/usr/bin/env sonos-bt-bridge doctor
 Restart=on-failure
 
