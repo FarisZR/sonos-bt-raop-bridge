@@ -1,0 +1,34 @@
+{
+  "android": {
+    "adb_device_present": true,
+    "android_version": "15",
+    "model": "SM-G996B"
+  },
+  "audio": {
+    "avahi_active": true,
+    "pipewire_installed": false,
+    "raop_services_visible": false,
+    "wireplumber_installed": false
+  },
+  "bluetooth": {
+    "adapter_alias": "FZR-LAPS",
+    "bluez_version": "5.82",
+    "controller_present": true,
+    "hci_version": "5.1",
+    "manufacturer": "Realtek Semiconductor Corporation",
+    "service_active": true,
+    "transport": "TP-Link UB500"
+  },
+  "captured_at": "2026-05-12T17:22:19Z",
+  "home_assistant": {
+    "configured": true,
+    "entity_discovery_completed": false,
+    "reachable": false,
+    "reachability_error": "URLError: timed out",
+    "url": "http://192.168.178.2:8123"
+  },
+  "host": {
+    "distribution": "Debian GNU/Linux 13 (trixie)",
+    "kernel": "6.12.86+deb13-amd64"
+  }
+}

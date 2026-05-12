@@ -7,3 +7,7 @@ __pycache__/
 .mypy_cache/
 artifacts/*
 !artifacts/.gitkeep
+!artifacts/discovery-*/
+artifacts/discovery-*/*
+!artifacts/discovery-*/README.md
+!artifacts/discovery-*/inventory.json
