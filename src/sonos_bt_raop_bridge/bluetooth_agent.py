@@ -8,13 +8,13 @@ from pathlib import Path
 from dbus_next import Message, Variant
 from dbus_next.aio import MessageBus
 from dbus_next.constants import BusType, MessageType
+from dbus_next.errors import DBusError
 from dbus_next.service import ServiceInterface, method
 
 
 AGENT_PATH = "/org/sonos_bt_raop_bridge/agent"
 AGENT_CAPABILITY = "NoInputNoOutput"
-DEFAULT_LEGACY_PIN_CODE = "0000"
-DEFAULT_LEGACY_PASSKEY = 0
+LEGACY_PAIRING_ERROR = "org.bluez.Error.Rejected"
 
 LOGGER = logging.getLogger(__name__)
 
@@ -87,13 +87,8 @@ class Agent(ServiceInterface):
 
     @method()
     def RequestPinCode(self, device: "o") -> "s":
-        LOGGER.info(
-            "Supplying legacy PIN code for device %s using default %s",
-            device,
-            DEFAULT_LEGACY_PIN_CODE,
-        )
-        self._trust_device(device)
-        return DEFAULT_LEGACY_PIN_CODE
+        LOGGER.warning("Rejecting legacy PIN pairing request for device %s", device)
+        raise DBusError(LEGACY_PAIRING_ERROR, "Legacy PIN pairing is not supported")
 
     @method()
     def DisplayPinCode(self, device: "o", pincode: "s") -> "":
@@ -102,13 +97,8 @@ class Agent(ServiceInterface):
 
     @method()
     def RequestPasskey(self, device: "o") -> "u":
-        LOGGER.info(
-            "Supplying legacy passkey for device %s using default %06d",
-            device,
-            DEFAULT_LEGACY_PASSKEY,
-        )
-        self._trust_device(device)
-        return DEFAULT_LEGACY_PASSKEY
+        LOGGER.warning("Rejecting legacy passkey pairing request for device %s", device)
+        raise DBusError(LEGACY_PAIRING_ERROR, "Legacy passkey pairing is not supported")
 
     @method()
     def DisplayPasskey(self, device: "o", passkey: "u", entered: "q") -> "":

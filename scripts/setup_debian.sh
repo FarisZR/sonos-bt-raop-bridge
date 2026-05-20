@@ -28,6 +28,7 @@ WIREPLUMBER_DROPIN_DIR=/etc/wireplumber/wireplumber.conf.d
 INSTALL_LIB_DIR=/usr/local/lib/sonos-bt-raop-bridge
 INSTALL_BIN_DIR=/usr/local/bin
 SYSTEMD_UNIT_DIR=/etc/systemd/system
+BLUETOOTH_SERVICE_DROPIN_DIR=$SYSTEMD_UNIT_DIR/bluetooth.service.d
 ENV_DIR=/etc/sonos-bt-raop-bridge
 ENV_FILE=$ENV_DIR/env
 BLUETOOTH_MAIN_CONF=/etc/bluetooth/main.conf
@@ -101,26 +102,49 @@ configure_bluez_device_class() {
   local device_class
   printf -v device_class '0x%06x' "$((bridge_class & 0x001ffc))"
 
+  set_bluez_general_option Class "$device_class"
+}
+
+set_bluez_general_option() {
+  local key="$1"
+  local value="$2"
+
   if [[ ! -f "$BLUETOOTH_MAIN_CONF" ]]; then
-    printf '[General]\nClass = %s\n' "$device_class" >"$BLUETOOTH_MAIN_CONF"
+    printf '[General]\n%s = %s\n' "$key" "$value" >"$BLUETOOTH_MAIN_CONF"
     return
   fi
 
-  if grep -q '^[[:space:]]*#\?[[:space:]]*Class[[:space:]]*=' "$BLUETOOTH_MAIN_CONF"; then
-    sed -i -E "0,/^[[:space:]]*#?[[:space:]]*Class[[:space:]]*=.*/s//Class = $device_class/" "$BLUETOOTH_MAIN_CONF"
+  if grep -q "^[[:space:]]*#\\?[[:space:]]*$key[[:space:]]*=" "$BLUETOOTH_MAIN_CONF"; then
+    sed -i -E "0,/^[[:space:]]*#?[[:space:]]*$key[[:space:]]*=.*/s//$key = $value/" "$BLUETOOTH_MAIN_CONF"
     return
   fi
 
   if grep -q '^[[:space:]]*\[General\]' "$BLUETOOTH_MAIN_CONF"; then
-    sed -i -E "/^[[:space:]]*\[General\]/a Class = $device_class" "$BLUETOOTH_MAIN_CONF"
+    sed -i -E "/^[[:space:]]*\[General\]/a $key = $value" "$BLUETOOTH_MAIN_CONF"
     return
   fi
 
   {
-    printf '[General]\nClass = %s\n\n' "$device_class"
+    printf '[General]\n%s = %s\n\n' "$key" "$value"
     cat "$BLUETOOTH_MAIN_CONF"
   } >"$BLUETOOTH_MAIN_CONF.tmp"
   mv "$BLUETOOTH_MAIN_CONF.tmp" "$BLUETOOTH_MAIN_CONF"
+}
+
+configure_bluez_pairing_policy() {
+  set_bluez_general_option AlwaysPairable true
+  set_bluez_general_option PairableTimeout 0
+  set_bluez_general_option JustWorksRepairing always
+  set_bluez_general_option ControllerMode bredr
+}
+
+configure_bluetoothd_plugins() {
+  install -d "$BLUETOOTH_SERVICE_DROPIN_DIR"
+  cat >"$BLUETOOTH_SERVICE_DROPIN_DIR/10-sonos-bt-raop-bridge.conf" <<'EOF'
+[Service]
+ExecStart=
+ExecStart=/usr/libexec/bluetooth/bluetoothd --noplugin=sap
+EOF
 }
 
 apt-get update
@@ -139,6 +163,8 @@ install -m 0644 "$ROOT_DIR/systemd/sonos-bt-adapter.service" "$SYSTEMD_UNIT_DIR/
 install -m 0644 "$ROOT_DIR/systemd/sonos-bt-agent.service" "$SYSTEMD_UNIT_DIR/sonos-bt-agent.service"
 install -m 0644 "$ROOT_DIR/systemd/sonos-bt-delay-forwarder.service" "$SYSTEMD_UNIT_DIR/sonos-bt-delay-forwarder.service"
 configure_bluez_device_class
+configure_bluez_pairing_policy
+configure_bluetoothd_plugins
 
 if target_user_name=$(resolve_target_user 2>/dev/null); then
   hass_server=$(pick_config_value "${HA_URL:-${HASS_SERVER:-}}" "$(load_bashrc_export "$target_user_name" HASS_SERVER)")
@@ -157,6 +183,7 @@ fi
 
 systemctl daemon-reload
 disable_conflicting_bluetooth_audio_services
+systemctl restart bluetooth.service
 systemctl enable --now sonos-bt-agent.service
 systemctl enable --now sonos-bt-adapter.service
 

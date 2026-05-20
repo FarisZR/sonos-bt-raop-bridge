@@ -1,18 +1,25 @@
 import asyncio
 
+import pytest
+
 import sonos_bt_raop_bridge.bluetooth_agent as bluetooth_agent
-from sonos_bt_raop_bridge.bluetooth_agent import AGENT_CAPABILITY, Agent
+from sonos_bt_raop_bridge.bluetooth_agent import AGENT_CAPABILITY, LEGACY_PAIRING_ERROR, Agent
 
 
 def test_agent_uses_headless_pairing_capability() -> None:
     assert AGENT_CAPABILITY == "NoInputNoOutput"
 
 
-def test_agent_returns_default_legacy_pairing_values() -> None:
+def test_agent_rejects_legacy_pairing_prompts() -> None:
     agent = Agent()
 
-    assert Agent.RequestPinCode.__wrapped__(agent, "/org/bluez/hci0/dev_00_11_22_33_44_55") == "0000"
-    assert Agent.RequestPasskey.__wrapped__(agent, "/org/bluez/hci0/dev_00_11_22_33_44_55") == 0
+    with pytest.raises(Exception) as pin_error:
+        Agent.RequestPinCode.__wrapped__(agent, "/org/bluez/hci0/dev_00_11_22_33_44_55")
+    with pytest.raises(Exception) as passkey_error:
+        Agent.RequestPasskey.__wrapped__(agent, "/org/bluez/hci0/dev_00_11_22_33_44_55")
+
+    assert getattr(pin_error.value, "type", None) == LEGACY_PAIRING_ERROR
+    assert getattr(passkey_error.value, "type", None) == LEGACY_PAIRING_ERROR
 
 
 def test_agent_marks_authorized_devices_trusted(monkeypatch) -> None:
