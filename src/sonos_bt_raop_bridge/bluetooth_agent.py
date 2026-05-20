@@ -34,6 +34,32 @@ async def _set_device_trusted(bus: MessageBus, device: str) -> None:
         LOGGER.warning("Could not mark device %s trusted: %s", device, reply.body)
 
 
+async def _trust_known_devices(bus: MessageBus) -> None:
+    reply = await bus.call(
+        Message(
+            destination="org.bluez",
+            path="/",
+            interface="org.freedesktop.DBus.ObjectManager",
+            member="GetManagedObjects",
+        )
+    )
+    if reply.message_type == MessageType.ERROR:
+        LOGGER.warning("Could not inspect known BlueZ devices: %s", reply.body)
+        return
+
+    objects = reply.body[0]
+    for path, interfaces in objects.items():
+        device = interfaces.get("org.bluez.Device1")
+        if not device:
+            continue
+        if not (device.get("Paired", Variant("b", False)).value or device.get("Bonded", Variant("b", False)).value):
+            continue
+        if device.get("Trusted", Variant("b", False)).value:
+            continue
+        LOGGER.info("Marking known paired device %s trusted", path)
+        await _set_device_trusted(bus, path)
+
+
 class Agent(ServiceInterface):
     def __init__(self, bus: MessageBus | None = None) -> None:
         super().__init__("org.bluez.Agent1")
@@ -131,6 +157,7 @@ async def _register_agent() -> MessageBus:
     bus.export(AGENT_PATH, agent)
     await manager.call_register_agent(AGENT_PATH, AGENT_CAPABILITY)
     await manager.call_request_default_agent(AGENT_PATH)
+    await _trust_known_devices(bus)
     LOGGER.info("Registered BlueZ agent at %s with capability %s", AGENT_PATH, AGENT_CAPABILITY)
     return bus
 

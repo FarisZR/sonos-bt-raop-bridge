@@ -47,7 +47,7 @@ hciconfig hci0 class "$BRIDGE_CLASS"
 
 # Report headless I/O capability so phones use just-works pairing.
 run_bluetoothctl_script "menu mgmt
-le off
+le on
 bredr on
 ssp on
 io-cap NoInputNoOutput
