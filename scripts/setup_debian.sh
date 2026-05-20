@@ -99,10 +99,8 @@ disable_conflicting_bluetooth_audio_services() {
 
 configure_bluez_device_class() {
   local bridge_class="${BRIDGE_BT_CLASS:-$BRIDGE_BT_CLASS_DEFAULT}"
-  local device_class
-  printf -v device_class '0x%06x' "$((bridge_class & 0x001ffc))"
 
-  set_bluez_general_option Class "$device_class"
+  set_bluez_general_option Class "$bridge_class"
 }
 
 set_bluez_general_option() {
@@ -136,7 +134,6 @@ configure_bluez_pairing_policy() {
   set_bluez_general_option PairableTimeout 0
   set_bluez_general_option JustWorksRepairing always
   set_bluez_general_option ControllerMode dual
-  set_bluez_general_option MultiProfile multiple
 }
 
 configure_bluetoothd_plugins() {

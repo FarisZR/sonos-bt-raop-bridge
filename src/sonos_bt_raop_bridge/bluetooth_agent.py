@@ -15,11 +15,6 @@ from dbus_next.service import ServiceInterface, method
 AGENT_PATH = "/org/sonos_bt_raop_bridge/agent"
 AGENT_CAPABILITY = "NoInputNoOutput"
 LEGACY_PAIRING_ERROR = "org.bluez.Error.Rejected"
-A2DP_SERVICE_UUIDS = {
-    "0000110a-0000-1000-8000-00805f9b34fb",  # Audio Source
-    "0000110b-0000-1000-8000-00805f9b34fb",  # Audio Sink
-    "0000110d-0000-1000-8000-00805f9b34fb",  # Advanced Audio Distribution
-}
 
 LOGGER = logging.getLogger(__name__)
 
@@ -40,23 +35,6 @@ async def _set_device_trusted(bus: MessageBus, device: str) -> None:
 
 
 async def _trust_known_devices(bus: MessageBus) -> None:
-    objects = await _get_bluez_objects(bus)
-    if objects is None:
-        return
-
-    for path, interfaces in objects.items():
-        device = interfaces.get("org.bluez.Device1")
-        if not device:
-            continue
-        if not (device.get("Paired", Variant("b", False)).value or device.get("Bonded", Variant("b", False)).value):
-            continue
-        if device.get("Trusted", Variant("b", False)).value:
-            continue
-        LOGGER.info("Marking known paired device %s trusted", path)
-        await _set_device_trusted(bus, path)
-
-
-async def _get_bluez_objects(bus: MessageBus) -> dict[str, dict] | None:
     reply = await bus.call(
         Message(
             destination="org.bluez",
@@ -67,46 +45,19 @@ async def _get_bluez_objects(bus: MessageBus) -> dict[str, dict] | None:
     )
     if reply.message_type == MessageType.ERROR:
         LOGGER.warning("Could not inspect known BlueZ devices: %s", reply.body)
-        return None
-
-    return reply.body[0]
-
-
-def _device_has_audio_service(device: dict) -> bool:
-    services = device.get("UUIDs", Variant("as", [])).value
-    return any(service in A2DP_SERVICE_UUIDS for service in services)
-
-
-async def _disconnect_device(bus: MessageBus, device: str) -> None:
-    reply = await bus.call(
-        Message(
-            destination="org.bluez",
-            path=device,
-            interface="org.bluez.Device1",
-            member="Disconnect",
-        )
-    )
-    if reply.message_type == MessageType.ERROR:
-        LOGGER.warning("Could not disconnect device %s for audio handoff: %s", device, reply.body)
-
-
-async def _disconnect_other_audio_devices(bus: MessageBus, current_device: str) -> None:
-    objects = await _get_bluez_objects(bus)
-    if objects is None:
         return
 
+    objects = reply.body[0]
     for path, interfaces in objects.items():
         device = interfaces.get("org.bluez.Device1")
         if not device:
             continue
-        if path == current_device:
+        if not (device.get("Paired", Variant("b", False)).value or device.get("Bonded", Variant("b", False)).value):
             continue
-        if not device.get("Connected", Variant("b", False)).value:
+        if device.get("Trusted", Variant("b", False)).value:
             continue
-        if not _device_has_audio_service(device):
-            continue
-        LOGGER.info("Disconnecting existing audio device %s before authorizing %s", path, current_device)
-        await _disconnect_device(bus, path)
+        LOGGER.info("Marking known paired device %s trusted", path)
+        await _set_device_trusted(bus, path)
 
 
 class Agent(ServiceInterface):
@@ -137,20 +88,15 @@ class Agent(ServiceInterface):
         return None
 
     @method()
-    async def RequestAuthorization(self, device: "o") -> "":
+    def RequestAuthorization(self, device: "o") -> "":
         LOGGER.info("Authorizing device %s", device)
-        if self._bus is not None:
-            await _set_device_trusted(self._bus, device)
-            await _disconnect_other_audio_devices(self._bus, device)
+        self._trust_device(device)
         return None
 
     @method()
-    async def AuthorizeService(self, device: "o", uuid: "s") -> "":
+    def AuthorizeService(self, device: "o", uuid: "s") -> "":
         LOGGER.info("Authorizing service %s for device %s", uuid, device)
-        if self._bus is not None:
-            await _set_device_trusted(self._bus, device)
-            if uuid in A2DP_SERVICE_UUIDS:
-                await _disconnect_other_audio_devices(self._bus, device)
+        self._trust_device(device)
         return None
 
     @method()
