@@ -136,6 +136,7 @@ configure_bluez_pairing_policy() {
   set_bluez_general_option PairableTimeout 0
   set_bluez_general_option JustWorksRepairing always
   set_bluez_general_option ControllerMode dual
+  set_bluez_general_option MultiProfile multiple
 }
 
 configure_bluetoothd_plugins() {
