@@ -30,6 +30,8 @@ INSTALL_BIN_DIR=/usr/local/bin
 SYSTEMD_UNIT_DIR=/etc/systemd/system
 ENV_DIR=/etc/sonos-bt-raop-bridge
 ENV_FILE=$ENV_DIR/env
+BLUETOOTH_MAIN_CONF=/etc/bluetooth/main.conf
+BRIDGE_BT_CLASS_DEFAULT=0x240414
 
 resolve_target_user() {
   if [[ -z "$TARGET_USER" ]]; then
@@ -94,6 +96,33 @@ disable_conflicting_bluetooth_audio_services() {
   fi
 }
 
+configure_bluez_device_class() {
+  local bridge_class="${BRIDGE_BT_CLASS:-$BRIDGE_BT_CLASS_DEFAULT}"
+  local device_class
+  printf -v device_class '0x%06x' "$((bridge_class & 0x001ffc))"
+
+  if [[ ! -f "$BLUETOOTH_MAIN_CONF" ]]; then
+    printf '[General]\nClass = %s\n' "$device_class" >"$BLUETOOTH_MAIN_CONF"
+    return
+  fi
+
+  if grep -q '^[[:space:]]*#\?[[:space:]]*Class[[:space:]]*=' "$BLUETOOTH_MAIN_CONF"; then
+    sed -i -E "0,/^[[:space:]]*#?[[:space:]]*Class[[:space:]]*=.*/s//Class = $device_class/" "$BLUETOOTH_MAIN_CONF"
+    return
+  fi
+
+  if grep -q '^[[:space:]]*\[General\]' "$BLUETOOTH_MAIN_CONF"; then
+    sed -i -E "/^[[:space:]]*\[General\]/a Class = $device_class" "$BLUETOOTH_MAIN_CONF"
+    return
+  fi
+
+  {
+    printf '[General]\nClass = %s\n\n' "$device_class"
+    cat "$BLUETOOTH_MAIN_CONF"
+  } >"$BLUETOOTH_MAIN_CONF.tmp"
+  mv "$BLUETOOTH_MAIN_CONF.tmp" "$BLUETOOTH_MAIN_CONF"
+}
+
 apt-get update
 apt-get install -y "${PACKAGES[@]}"
 
@@ -109,6 +138,7 @@ install -m 0755 "$ROOT_DIR/scripts/sonos-bt-bridge" "$INSTALL_BIN_DIR/sonos-bt-b
 install -m 0644 "$ROOT_DIR/systemd/sonos-bt-adapter.service" "$SYSTEMD_UNIT_DIR/sonos-bt-adapter.service"
 install -m 0644 "$ROOT_DIR/systemd/sonos-bt-agent.service" "$SYSTEMD_UNIT_DIR/sonos-bt-agent.service"
 install -m 0644 "$ROOT_DIR/systemd/sonos-bt-delay-forwarder.service" "$SYSTEMD_UNIT_DIR/sonos-bt-delay-forwarder.service"
+configure_bluez_device_class
 
 if target_user_name=$(resolve_target_user 2>/dev/null); then
   hass_server=$(pick_config_value "${HA_URL:-${HASS_SERVER:-}}" "$(load_bashrc_export "$target_user_name" HASS_SERVER)")
