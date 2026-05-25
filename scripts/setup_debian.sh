@@ -99,8 +99,15 @@ disable_conflicting_bluetooth_audio_services() {
 
 configure_bluez_device_class() {
   local bridge_class="${BRIDGE_BT_CLASS:-$BRIDGE_BT_CLASS_DEFAULT}"
+  local bluez_main_class
 
-  set_bluez_general_option Class "$bridge_class"
+  # BlueZ main.conf only persists the major/minor device class bits. Service
+  # class bits are supplied dynamically by registered profiles and by the live
+  # adapter prep script. Writing the full class here can be ignored by BlueZ and
+  # fall back to the default Computer/Laptop class after WirePlumber registers
+  # audio endpoints.
+  printf -v bluez_main_class '0x%06x' "$((bridge_class & 0x001ffc))"
+  set_bluez_general_option Class "$bluez_main_class"
 }
 
 set_bluez_general_option() {
@@ -160,6 +167,7 @@ install -m 0755 "$ROOT_DIR/scripts/sonos-bt-bridge" "$INSTALL_BIN_DIR/sonos-bt-b
 install -m 0644 "$ROOT_DIR/systemd/sonos-bt-adapter.service" "$SYSTEMD_UNIT_DIR/sonos-bt-adapter.service"
 install -m 0644 "$ROOT_DIR/systemd/sonos-bt-agent.service" "$SYSTEMD_UNIT_DIR/sonos-bt-agent.service"
 install -m 0644 "$ROOT_DIR/systemd/sonos-bt-delay-forwarder.service" "$SYSTEMD_UNIT_DIR/sonos-bt-delay-forwarder.service"
+install -m 0644 "$ROOT_DIR/systemd/sonos-bt-bridge.target" "$SYSTEMD_UNIT_DIR/sonos-bt-bridge.target"
 configure_bluez_device_class
 configure_bluez_pairing_policy
 configure_bluetoothd_plugins
@@ -193,6 +201,9 @@ if [[ -n "${target_user_name:-}" ]]; then
     sudo -u "$target_user_name" env XDG_RUNTIME_DIR="$RUNTIME_DIR" DBUS_SESSION_BUS_ADDRESS="$SESSION_BUS" systemctl --user restart pipewire.service wireplumber.service pipewire-pulse.service
   fi
 fi
+
+# Re-apply adapter class after user audio services register Bluetooth endpoints.
+systemctl restart sonos-bt-adapter.service
 
 printf 'Installed packages and applied %s\n' "$SYSCTL_FILE"
 printf 'Wrote runtime environment to %s\n' "$ENV_FILE"

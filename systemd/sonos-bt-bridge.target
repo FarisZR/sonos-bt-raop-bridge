@@ -1,2 +1,7 @@
 [Unit]
 Description=sonos-bt-raop-bridge target
+Wants=bluetooth.service sonos-bt-adapter.service sonos-bt-agent.service
+After=bluetooth.service sonos-bt-adapter.service sonos-bt-agent.service
+
+[Install]
+WantedBy=multi-user.target
